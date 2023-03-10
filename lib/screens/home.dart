@@ -1,8 +1,10 @@
+// import 'dart:html';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:tflite/tflite.dart';
 
 class Home extends StatefulWidget {
@@ -14,6 +16,7 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   bool _loading = true;
+  bool grant = false;
   late File _image;
   final imagePicker = ImagePicker();
   List predictions = [
@@ -24,7 +27,7 @@ class _HomeState extends State<Home> {
   ];
 
   _loadimage_gallery() async {
-    var image = await imagePicker.pickImage(
+    var image = await imagePicker.getImage(
       source: ImageSource.gallery,
     );
     if (image == null) {
@@ -39,7 +42,7 @@ class _HomeState extends State<Home> {
   }
 
   _loadimage_camera() async {
-    var image = await imagePicker.pickImage(source: ImageSource.camera);
+    var image = await imagePicker.getImage(source: ImageSource.camera);
     if (image == null) {
       return null;
     } else {
@@ -51,11 +54,31 @@ class _HomeState extends State<Home> {
     detectMask(_image);
   }
 
+  late Map<Permission, PermissionStatus> statuses;
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     loadModel();
+    getPermission();
+  }
+
+  getPermission() async {
+    statuses = await [Permission.storage, Permission.camera].request();
+    if (await Permission.camera.request().isGranted &&
+        await Permission.storage.request().isGranted) {
+      setState(() {
+        grant = true;
+      });
+    } else if (await Permission.camera.request().isDenied ||
+        await Permission.storage.request().isDenied) {
+      await Permission.camera.request();
+      await Permission.storage.request();
+      setState(() {
+        grant = true;
+      });
+    }
   }
 
   loadModel() async {
@@ -96,134 +119,140 @@ class _HomeState extends State<Home> {
           style: GoogleFonts.roboto(),
         ),
       ),
-      body: Container(
-        height: h,
-        width: w,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              height: 160,
-              width: 160,
-              padding: const EdgeInsets.all(10),
-              child: Image.asset(
-                'assets/images/mask.png',
-              ),
-            ),
-            Container(
-              child: Text(
-                "ML CLassifier",
-                style: GoogleFonts.roboto(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            SizedBox(
-              height: 10,
-            ),
-            Container(
-              width: double.infinity,
-              height: 70,
-              padding: const EdgeInsets.all(10),
-              child: ElevatedButton(
-                onPressed: () {
-                  _loadimage_camera();
-                },
-                style: ButtonStyle(
-                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18.0),
-                      side: const BorderSide(color: Colors.teal),
+      body: grant == false
+          ? Center(
+              child: CircularProgressIndicator(),
+            )
+          : Container(
+              height: h,
+              width: w,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    height: 160,
+                    width: 160,
+                    padding: const EdgeInsets.all(10),
+                    child: Image.asset(
+                      'assets/images/mask.png',
                     ),
                   ),
-                ),
-                child: Text(
-                  "Camera",
-                  style: GoogleFonts.roboto(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            // SizedBox(
-            //   height: 10,
-            // ),
-            Container(
-              width: double.infinity,
-              height: 70,
-              padding: const EdgeInsets.all(10),
-              child: ElevatedButton(
-                onPressed: () {
-                  _loadimage_gallery();
-                },
-                style: ButtonStyle(
-                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18.0),
-                      side: const BorderSide(color: Colors.teal),
+                  Container(
+                    child: Text(
+                      "ML CLassifier",
+                      style: GoogleFonts.roboto(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                child: Text(
-                  "Gallery",
-                  style: GoogleFonts.roboto(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                  SizedBox(
+                    height: 10,
                   ),
-                ),
-              ),
-            ),
-            SizedBox(
-              height: 20,
-            ),
-            _loading == true
-                ? Container()
-                : Container(
-                    child: Column(
-                      children: [
-                        Text(
-                          predictions[0]['label'].toString().substring(2),
-                          style: GoogleFonts.roboto(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: predictions[0]['label']
+                  Container(
+                    width: double.infinity,
+                    height: 70,
+                    padding: const EdgeInsets.all(10),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        _loadimage_camera();
+                      },
+                      style: ButtonStyle(
+                        shape:
+                            MaterialStateProperty.all<RoundedRectangleBorder>(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18.0),
+                            side: const BorderSide(color: Colors.teal),
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        "Camera",
+                        style: GoogleFonts.roboto(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // SizedBox(
+                  //   height: 10,
+                  // ),
+                  Container(
+                    width: double.infinity,
+                    height: 70,
+                    padding: const EdgeInsets.all(10),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        _loadimage_gallery();
+                      },
+                      style: ButtonStyle(
+                        shape:
+                            MaterialStateProperty.all<RoundedRectangleBorder>(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18.0),
+                            side: const BorderSide(color: Colors.teal),
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        "Gallery",
+                        style: GoogleFonts.roboto(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 20,
+                  ),
+                  _loading == true
+                      ? Container()
+                      : Container(
+                          child: Column(
+                            children: [
+                              Text(
+                                predictions[0]['label'].toString().substring(2),
+                                style: GoogleFonts.roboto(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: predictions[0]['label']
+                                              .toString()
+                                              .substring(2) ==
+                                          'no mask'
+                                      ? Colors.red
+                                      : Colors.green,
+                                ),
+                              ),
+                              SizedBox(
+                                height: 25,
+                              ),
+                              Container(
+                                height: 200,
+                                width: 200,
+                                child: Image.file(_image),
+                              ),
+                              SizedBox(
+                                height: 25,
+                              ),
+                              Text(
+                                "Confidence = " +
+                                    (predictions[0]['confidence'] * 100)
                                         .toString()
-                                        .substring(2) ==
-                                    'no mask'
-                                ? Colors.red
-                                : Colors.green,
+                                        .substring(0, 5) +
+                                    '%',
+                                style: GoogleFonts.roboto(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        SizedBox(
-                          height: 25,
-                        ),
-                        Container(
-                          height: 200,
-                          width: 200,
-                          child: Image.file(_image),
-                        ),
-                        SizedBox(
-                          height: 25,
-                        ),
-                        Text(
-                          "Confidence = " +
-                              (predictions[0]['confidence'] * 100)
-                                  .toString()
-                                  .substring(0, 5) +
-                              '%',
-                          style: GoogleFonts.roboto(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-          ],
-        ),
-      ),
+                ],
+              ),
+            ),
     );
   }
 }

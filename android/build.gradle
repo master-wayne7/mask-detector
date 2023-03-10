@@ -17,6 +17,8 @@ allprojects {
         mavenCentral()
     }
 }
+// android.useAndroidX=true
+// android.enableJetifier=true
 
 rootProject.buildDir = '../build'
 subprojects {
